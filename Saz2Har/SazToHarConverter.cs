@@ -379,10 +379,14 @@ internal sealed class SazToHarConverter : IDisposable
         outputJsonWriter.WriteNumber("status", statusCode.ParseStatusCode());
         outputJsonWriter.WriteString("statusText", statusText);
         outputJsonWriter.WriteString("httpVersion", httpVersion.GetAsciiString(toLower: true));
+
+        outputJsonWriter.WriteString("redirectURL", "");
     }
 
     private void WriteResponseBody(Utf8JsonWriter outputJsonWriter, ReadOnlyMemory<byte> httpMessageBytes, List<KeyValuePair<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>>> httpHeaders)
     {
+        outputJsonWriter.WriteNumber("bodySize", httpMessageBytes.Length);
+
         outputJsonWriter.WriteStartObject("content");
 
         outputJsonWriter.WriteNumber("size", httpMessageBytes.Length);
@@ -452,8 +456,16 @@ internal sealed class SazToHarConverter : IDisposable
 
                         static DateTimeOffset? ReadContentAsDateTimeOffset(XmlReader xmlReader)
                         {
-                            var value = xmlReader.ReadContentAsDateTimeOffset();
-                            return value == DateTimeOffset.MinValue ? null : value;
+                            try
+                            {
+                                var value = xmlReader.ReadContentAsDateTimeOffset();
+                                return value == DateTimeOffset.MinValue ? null : value;
+                            }
+                            catch
+                            {
+                                Console.WriteLine($"[Warning] DateTime out of range for {xmlReader.Name}.");
+                                return null;
+                            }
                         }
                     }
                     while (xmlReader.MoveToNextAttribute());
@@ -699,6 +711,8 @@ internal sealed class SazToHarConverter : IDisposable
 
     private static void WriteHttpHeaders(Utf8JsonWriter outputJsonWriter, List<KeyValuePair<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>>> httpHeaders)
     {
+        outputJsonWriter.WriteNumber("headersSize", httpHeaders.Count);
+
         outputJsonWriter.WriteStartArray("headers");
 
         foreach (var httpHeader in httpHeaders)
